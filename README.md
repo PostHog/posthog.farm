@@ -72,6 +72,26 @@ The roster is baked into the build. The daily rebuild picks up new hedgehogs and
 people who left. XP lives in the Barn, so redeploys never reset anything; hedgehogs who leave
 keep their row (hidden), and get their XP back if they ever return.
 
+## Analytics
+
+`src/analytics.ts` sends events to posthog.com's PostHog project with `posthog-js`, set up like
+brand.posthog.com (same public token). Every event carries `site: "posthog.farm"`. Capturing is
+off in local development, and there's no session replay.
+
+| Event | When | Key properties |
+| --- | --- | --- |
+| `game started` | PRESS START | `returning`, `hedgehogs_met`, `trophies_unlocked` |
+| `hedgehog card opened` | a hedgehog's card opens | hedgehog (`hedgehog_id`, `hedgehog_name`, `hedgehog_team`), `source`: farm / dex / ranks |
+| `hedgehog fed` | the server accepted a snack | hedgehog, `food`, `food_name`, `outcome`, `xp`, `multipliers`, `hunger_before`, `level_before`/`level_after`, `leveled_up`, `hogiversary`, `streak` |
+| `hedgehog feed rejected` | the server turned a snack down | hedgehog, `food`, `error` (`already_fed`, `slow_down`, …) |
+| `trophy unlocked` | each new trophy | `trophy_id`, `trophy_name`, `trophies_unlocked`, `all_trophies_unlocked` |
+| `hedgehog whistled` / `hedgehog tracked` | whistle / compass | hedgehog |
+| `panel opened` | Hedgedex, rankings, farmer stats, help | `panel` |
+| `setting toggled` | music, sound, names | `setting`, `enabled` |
+
+Trophies and streaks only live in the browser, so these events are the only record of them.
+Dashboard: [PostHog Farm 🦔](https://us.posthog.com/project/2/dashboard/2212503).
+
 ## Development
 
 Requires Node 24+.

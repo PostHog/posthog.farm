@@ -3,11 +3,12 @@ import '@fontsource/vt323'
 import './style.css'
 
 import { ROSTER, ROSTER_GENERATED_AT } from '../shared/game'
+import { initAnalytics, track } from './analytics'
 import { api } from './api'
 import { audio } from './audio'
 import { fmtNumber, h } from './dom'
 import { pick } from './lines'
-import { markSeen, persist, save } from './save'
+import { markSeen, persist, save, seenCount } from './save'
 import * as S from './sprites'
 import { serverNow, state } from './state'
 import {
@@ -29,6 +30,8 @@ import {
     updateSnackChip,
 } from './ui'
 import { World } from './world'
+
+initAnalytics()
 
 const canvas = document.getElementById('world') as HTMLCanvasElement
 const world = new World(canvas)
@@ -149,6 +152,7 @@ buildParade()
 
 function start() {
     if (world.mode === 'play') return
+    track('game started', { returning: save.introSeen, hedgehogs_met: seenCount(), trophies_unlocked: save.trophies.length })
     audio.unlock()
     audio.play('start')
     title.classList.add('leaving')

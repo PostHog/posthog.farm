@@ -19,6 +19,7 @@ import {
     xpForLevel,
     yearsAtPostHog,
 } from '../shared/game'
+import { hedgehogProperties, track } from './analytics'
 import { api } from './api'
 import { audio } from './audio'
 import { article, flag, fmtCountdown, fmtNumber, h, timeAgo } from './dom'
@@ -79,6 +80,13 @@ export function toast(title: string, text = '', kind: 'info' | 'trophy' | 'error
 export function award(id: string) {
     const t = unlock(id)
     if (!t) return
+    track('trophy unlocked', {
+        trophy_id: t.id,
+        trophy_name: t.name,
+        trophies_unlocked: save.trophies.length,
+        trophies_total: TROPHIES.length,
+        all_trophies_unlocked: save.trophies.length >= TROPHIES.length,
+    })
     trophyQueue.push(t)
     if (trophyQueue.length === 1) setTimeout(drainTrophies, trophyDelay)
 }
@@ -132,12 +140,14 @@ function statsOf(id: number) {
 }
 
 export function findHog(hog: Hog) {
+    track('hedgehog tracked', hedgehogProperties(hog.h))
     closeModal(true)
     state.world.focusOn(hog)
     toast(`TRACKING ${hog.h.shortName.toUpperCase()}`, 'Follow the yellow arrow around your farmer. Or whistle and let them come to you.')
 }
 
 export function whistleHog(hog: Hog) {
+    track('hedgehog whistled', hedgehogProperties(hog.h))
     closeModal(true)
     state.world.whistle(hog)
     award('whistle')
@@ -146,8 +156,10 @@ export function whistleHog(hog: Hog) {
 
 // ---------------------------------------------------------------- hedgehog card
 
-export function openHedgehog(hog: Hog) {
+/** `source`: where the card was opened from, e.g. walking up to them on the farm or the Hedgedex */
+export function openHedgehog(hog: Hog, source: 'farm' | 'dex' | 'ranks' = 'farm') {
     const hh = hog.h
+    track('hedgehog card opened', { ...hedgehogProperties(hh), source })
     if (markSeen(hh.id)) checkMeetTrophies()
     const s = statsOf(hh.id)
     const farm = state.farm
@@ -355,8 +367,10 @@ function feedPanel(hog: Hog): HTMLElement {
 }
 
 async function feed(hog: Hog, food: FoodId) {
+    const hungerBefore = HUNGER[hungerLevel(hog.stats[2], serverNow())].label
     const res = await api.feed(hog.h.id, food)
     if (!res.ok) {
+        track('hedgehog feed rejected', { ...hedgehogProperties(hog.h), food, error: res.error })
         audio.play('error')
         if (res.error === 'already_fed' && res.fed && state.me) {
             state.me = { ...state.me, fed: res.fed, nextResetAt: res.nextResetAt ?? state.me.nextResetAt }
@@ -387,6 +401,23 @@ async function feed(hog: Hog, food: FoodId) {
         audio.play('coin')
         toast(OUTCOME_TITLES[event.outcome], `${hog.h.shortName} got +${event.xp} XP${multipliers.length ? ` (${multipliers.join(', ')})` : ''}. Come back tomorrow for another snack!`, 'win', 6000)
     }, 2300)
+
+    track('hedgehog fed', {
+        ...hedgehogProperties(hog.h),
+        food,
+        food_name: FOOD_BY_ID.get(food)!.name,
+        outcome: event.outcome,
+        xp: event.xp,
+        multipliers,
+        hunger_before: hungerBefore,
+        level_before: levelBefore,
+        level_after: hog.level,
+        leveled_up: hog.level > levelBefore,
+        hogiversary: multipliers.some((m) => m.startsWith('HOGIVERSARY')),
+        streak: currentStreak(),
+        // the farmer, as a person: how committed are they
+        $set: { farm_snacks_served: save.fed.length, farm_streak: currentStreak() },
+    })
 
     // trophies (shown after the celebration)
     trophyDelay = 3800
@@ -518,6 +549,7 @@ export function updatePartyChip() {
 // ---------------------------------------------------------------- dex
 
 export function openDex() {
+    track('panel opened', { panel: 'dex' })
     const teams = [...new Set(ROSTER.flatMap((r) => r.teams))].sort()
     const search = h('input', { type: 'search', placeholder: 'SEARCH HEDGEHOGS...', autocomplete: 'off', spellcheck: false })
     const teamSel = h('select', {}, h('option', { value: '' }, 'ALL TEAMS'), ...teams.map((t) => h('option', { value: t }, t.toUpperCase())))
@@ -565,7 +597,7 @@ export function openDex() {
                     {
                         class: `dex-entry ${met ? '' : 'unmet'} ${party ? 'party' : ''}`,
                         style: { '--c': r.color },
-                        onclick: () => openHedgehog(state.world.hogById.get(r.id)!),
+                        onclick: () => openHedgehog(state.world.hogById.get(r.id)!, 'dex'),
                     },
                     portrait(r, 16, 'portrait small'),
                     h('span', { class: 'dex-name' }, party ? '🎉 ' : '', r.name),
@@ -590,12 +622,13 @@ export function openDex() {
 // ---------------------------------------------------------------- ranks
 
 export function openRanks(tab: 'chonk' | 'hungry' | 'teams' | 'log' = 'chonk') {
+    track('panel opened', { panel: 'ranks' })
     const tabs = h('div', { class: 'tabs' })
     const content = h('div', { class: 'ranks' })
     const row = (rank: number, r: Hedgehog, right: (Node | string)[]) =>
         h(
             'button',
-            { class: 'rank-row', onclick: () => openHedgehog(state.world.hogById.get(r.id)!) },
+            { class: 'rank-row', onclick: () => openHedgehog(state.world.hogById.get(r.id)!, 'ranks') },
             h('span', { class: `rank r${rank}` }, rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`),
             portrait(r, 16, 'portrait tiny'),
             h('span', { class: 'rank-name' }, r.name, h('small', {}, r.teams[0])),
@@ -660,7 +693,7 @@ export function openRanks(tab: 'chonk' | 'hungry' | 'teams' | 'log' = 'chonk') {
                           if (!r) return h('span')
                           return h(
                               'button',
-                              { class: 'rank-row', onclick: () => openHedgehog(state.world.hogById.get(r.id)!) },
+                              { class: 'rank-row', onclick: () => openHedgehog(state.world.hogById.get(r.id)!, 'ranks') },
                               h('span', { class: 'rank' }, flag(e.country)),
                               foodIcon(e.food, 3),
                               h('span', { class: 'rank-name' }, r.name, h('small', {}, `${FOOD_BY_ID.get(e.food)!.name} · ${OUTCOME_TITLES[e.outcome]}`)),
@@ -680,6 +713,7 @@ export function openRanks(tab: 'chonk' | 'hungry' | 'teams' | 'log' = 'chonk') {
 // ---------------------------------------------------------------- farmer
 
 export function openFarmer() {
+    track('panel opened', { panel: 'farmer' })
     const streak = currentStreak()
     const me = state.me
     const fedToday = me?.fed ? ROSTER_BY_ID.get(me.fed.hedgehogId) : null
@@ -735,6 +769,7 @@ export function openFarmer() {
 // ---------------------------------------------------------------- help
 
 export function openHelp() {
+    track('panel opened', { panel: 'help' })
     const body = h(
         'div',
         { class: 'help' },
@@ -818,6 +853,7 @@ export function checkMeetTrophies() {
 
 export function toggleSetting(key: 'music' | 'sfx' | 'names') {
     save[key] = !save[key]
+    track('setting toggled', { setting: key, enabled: save[key] })
     persist()
     if (key === 'music') audio.setMusic(save.music)
     if (key === 'sfx') audio.setSfx(save.sfx)
