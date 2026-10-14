@@ -4,6 +4,9 @@
   "main": "./worker/index.ts",
   "compatibility_date": "2026-10-01",
   "observability": { "enabled": true },
+  // posthog.farm is a zone in the same Cloudflare account. Deploying creates the
+  // DNS record and certificate for it automatically.
+  "routes": [{ "pattern": "posthog.farm", "custom_domain": true }],
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]

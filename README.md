@@ -123,12 +123,10 @@ After changing bindings in `wrangler.jsonc`, regenerate types with `npm run cf-t
    Changing the salt later resets everyone's "already fed today" status for the rest of the day,
    nothing else.
 
-4. Optional: serve it on a custom domain. If the domain's zone is on the same Cloudflare
-   account, add this to `wrangler.jsonc` and push:
-
-   ```jsonc
-   "routes": [{ "pattern": "posthog.farm", "custom_domain": true }]
-   ```
+The farm is served at **https://posthog.farm**, configured as a Worker
+[custom domain](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
+in `wrangler.jsonc`. The zone lives in the same Cloudflare account, and deploying creates the DNS
+record and certificate automatically. It's also reachable at `posthog-farm.<subdomain>.workers.dev`.
 
 From then on, every push to `main` deploys, and the farm rebuilds itself daily at 05:00 UTC.
 
