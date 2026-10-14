@@ -140,3 +140,5 @@ From then on, every push to `main` deploys, and the farm rebuilds itself daily a
   deploys an empty farm.
 - The Rate Limiting binding's `namespace_id` (`1001`) only has to be unique within the
   Cloudflare account.
+- The PostHog org requires GitHub Actions to be pinned to a full commit SHA (`uses: owner/action@<sha> # vX.Y.Z`).
+  Tags like `@v4` will make the workflow fail before it starts.
