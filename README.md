@@ -51,7 +51,8 @@ Everything is drawn in code: no image assets apart from avatars (pixelated in th
 | `worker/index.ts` | The API: `GET /api/farm` (edge-cached for 5s), `GET /api/me`, `GET /api/hedgehogs/:id`, `POST /api/feed`. Everything else is served by Workers Static Assets. |
 | `worker/barn.ts` | **The Barn**: one global SQLite-backed Durable Object holding hedgehog stats and the daily snack locks. |
 | `src/` | The game client. Plain TypeScript and canvas, no framework. |
-| `.github/workflows/daily-rebuild.yml` | Rebuilds and deploys on every push to `main` and every day at 05:00 UTC. |
+| Cloudflare Workers Builds | Builds and deploys on every push to `main`. A Cron Trigger on the Worker calls its own deploy hook daily at 05:00 UTC to rebuild with a fresh roster. |
+| `.github/workflows/ci.yml` | Typecheck + build on pushes and pull requests. Never deploys. |
 
 ### The one-snack-per-day rule
 
@@ -92,40 +93,59 @@ Local secrets go in `.dev.vars` (git-ignored):
 
 ```
 IP_SALT=anything-for-local-dev
+DEPLOY_HOOK_URL=
 ```
+
+To try the daily-rebuild cron locally, open `http://localhost:5173/cdn-cgi/handler/scheduled`.
+With `DEPLOY_HOOK_URL` empty it just logs that it skipped.
 
 After changing bindings in `wrangler.jsonc`, regenerate types with `npm run cf-typegen`.
 
 ## Deployment
 
-### What you need
+Deploys run in **[Cloudflare Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/)**
+(Cloudflare's Git integration), so no Cloudflare credentials live in GitHub.
 
-| Credential | Where it goes | How to get it |
-| --- | --- | --- |
-| `CLOUDFLARE_ACCOUNT_ID` | GitHub Actions secret | Cloudflare dashboard → any zone or Workers overview → right sidebar, "Account ID". |
-| `CLOUDFLARE_API_TOKEN` | GitHub Actions secret | Cloudflare dashboard → My Profile → API Tokens → Create Token → **"Edit Cloudflare Workers"** template, scoped to the PostHog account (and the zone, if using a custom domain). |
-| `IP_SALT` | Worker secret (set once) | Any long random string, e.g. `openssl rand -hex 32`. Never needs to leave Cloudflare. |
+- **Every push to `main`**: Cloudflare runs `npm run build` (which fetches a fresh roster) and
+  `npx wrangler deploy`.
+- **Every day at 05:00 UTC**: the Worker's Cron Trigger POSTs to a Workers Builds
+  [deploy hook](https://developers.cloudflare.com/workers/ci-cd/builds/deploy-hooks/), which
+  rebuilds `main` the same way. That's what picks up new hedgehogs and removes people who left.
 
 ### One-time setup
 
-1. Add the GitHub secrets (needs repo admin):
+1. **Connect the repo.** Cloudflare dashboard → **Workers & Pages** → **Create application** →
+   **Import a repository**. Connect GitHub; this installs the Cloudflare GitHub app, and for the
+   PostHog org it's enough to grant it access to `PostHog/posthog.farm` only. Then pick the repo and use:
 
-   ```sh
-   gh secret set CLOUDFLARE_API_TOKEN -R PostHog/posthog.farm
-   gh secret set CLOUDFLARE_ACCOUNT_ID -R PostHog/posthog.farm
-   ```
+   | Setting | Value |
+   | --- | --- |
+   | Project name | `posthog-farm` (must match `name` in `wrangler.jsonc`) |
+   | Production branch | `main` |
+   | Build command | `npm run build` |
+   | Deploy command | `npx wrangler deploy` (the default) |
+   | Root directory | `/` (the default) |
+   | API token | let Cloudflare create one (the default) |
 
-2. Deploy once (either run the "Rebuild the farm" workflow from the Actions tab, or locally
-   with `npx wrangler login && npm run deploy`).
+   Node 24 is picked up from `.nvmrc`. Select **Save and Deploy**. The first build creates the
+   Worker, the Durable Object, the rate limiter, and the `posthog.farm` + `www.posthog.farm`
+   custom domains (DNS records and certificates included).
 
-3. Set the IP salt on the deployed Worker:
+2. **Set the secrets.** Worker → **Settings** → **Variables and Secrets** → **Add**, type **Secret**:
 
-   ```sh
-   openssl rand -hex 32 | npx wrangler secret put IP_SALT
-   ```
+   | Secret | Value |
+   | --- | --- |
+   | `IP_SALT` | any long random string, e.g. the output of `openssl rand -hex 32` |
+   | `DEPLOY_HOOK_URL` | from step 3 |
 
-   Changing the salt later resets everyone's "already fed today" status for the rest of the day,
-   nothing else.
+3. **Create the deploy hook.** Worker → **Settings** → **Builds** → **Deploy Hooks**. Name it
+   (e.g. `daily-roster`), branch `main`, **Create**, and copy the URL into the `DEPLOY_HOOK_URL`
+   secret. Treat the URL like a password: anyone holding it can trigger builds (nothing else).
+
+That's it. Secrets survive deploys. Changing `IP_SALT` later only resets everyone's "already fed
+today" status for the rest of that day.
+
+### Domains
 
 The farm is served at **https://posthog.farm**, configured as a Worker
 [custom domain](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
@@ -134,14 +154,15 @@ record and certificate automatically. `www.posthog.farm` is attached the same wa
 301-redirects it to `posthog.farm` (keeping the path and query), which is why `run_worker_first`
 is `true`. It's also reachable at `posthog-farm.<subdomain>.workers.dev`.
 
-From then on, every push to `main` deploys, and the farm rebuilds itself daily at 05:00 UTC.
+Neither hostname may have an existing DNS record (e.g. a CNAME) when the first deploy runs.
 
 ### Notes
 
-- GitHub pauses scheduled workflows in repos with no activity for 60 days. If the roster stops
-  updating, re-enable the workflow from the Actions tab.
+- If the daily rebuild seems stuck, check the Worker's **Cron Events** and logs (observability is
+  enabled), and the build history under **Deployments**.
 - The fetch script refuses to build if it finds fewer than 50 hedgehogs, so a broken API never
-  deploys an empty farm.
+  deploys an empty farm. That build just fails, and the farm keeps running yesterday's roster.
+- Deploying manually still works: `npx wrangler login && npm run deploy`.
 - The Rate Limiting binding's `namespace_id` (`1001`) only has to be unique within the
   Cloudflare account.
 - The PostHog org requires GitHub Actions to be pinned to a full commit SHA (`uses: owner/action@<sha> # vX.Y.Z`).

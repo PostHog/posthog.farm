@@ -4,6 +4,9 @@
   "main": "./worker/index.ts",
   "compatibility_date": "2026-10-01",
   "observability": { "enabled": true },
+  // Daily at 05:00 UTC the Worker calls its own Workers Builds deploy hook, so the farm
+  // rebuilds with a fresh roster (see the scheduled handler in worker/index.ts).
+  "triggers": { "crons": ["0 5 * * *"] },
   "routes": [
     { "pattern": "posthog.farm", "custom_domain": true },
     { "pattern": "www.posthog.farm", "custom_domain": true }
@@ -31,6 +34,7 @@
       "simple": { "limit": 10, "period": 60 }
     }
   ]
-  // Secrets (set with `wrangler secret put IP_SALT`):
+  // Secrets (set in the dashboard or with `wrangler secret put`):
   //   IP_SALT: random string used to hash visitor IPs, so we never store raw IPs
+  //   DEPLOY_HOOK_URL: the Workers Builds deploy hook the daily cron calls
 }

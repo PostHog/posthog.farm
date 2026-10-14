@@ -110,4 +110,16 @@ export default {
         }
         return env.ASSETS.fetch(request)
     },
+
+    /** Daily rebuild: ask Workers Builds to rebuild main, which re-fetches the roster */
+    async scheduled(_controller, env) {
+        if (!env.DEPLOY_HOOK_URL) {
+            console.warn('DEPLOY_HOOK_URL is not set, skipping the daily rebuild')
+            return
+        }
+        const res = await fetch(env.DEPLOY_HOOK_URL, { method: 'POST' })
+        const body = await res.text()
+        if (!res.ok) throw new Error(`Deploy hook failed: ${res.status} ${body}`)
+        console.log(`Daily rebuild triggered: ${body}`)
+    },
 } satisfies ExportedHandler<Env>
