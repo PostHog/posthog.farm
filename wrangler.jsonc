@@ -4,12 +4,15 @@
   "main": "./worker/index.ts",
   "compatibility_date": "2026-10-01",
   "observability": { "enabled": true },
-  // posthog.farm is a zone in the same Cloudflare account. Deploying creates the
-  // DNS record and certificate for it automatically.
-  "routes": [{ "pattern": "posthog.farm", "custom_domain": true }],
+  "routes": [
+    { "pattern": "posthog.farm", "custom_domain": true },
+    { "pattern": "www.posthog.farm", "custom_domain": true }
+  ],
   "assets": {
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    // the Worker runs first on every request so it can redirect www.posthog.farm
+    "run_worker_first": true
   },
   // The Barn: a single SQLite-backed Durable Object. It's the source of truth for
   // hedgehog XP and for the "one snack per IP per day" rule. Durable Objects process

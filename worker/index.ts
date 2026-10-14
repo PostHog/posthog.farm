@@ -96,6 +96,10 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
 export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url)
+        if (url.hostname.startsWith('www.')) {
+            url.hostname = url.hostname.slice(4)
+            return Response.redirect(url.toString(), 301)
+        }
         if (url.pathname.startsWith('/api/')) {
             try {
                 return await handleApi(request, env, ctx)
@@ -104,6 +108,6 @@ export default {
                 return json({ ok: false, error: 'barn_on_fire', message: 'The barn is on fire. Please try again.' }, { status: 500 })
             }
         }
-        return new Response('Not found', { status: 404 })
+        return env.ASSETS.fetch(request)
     },
 } satisfies ExportedHandler<Env>

@@ -1,5 +1,9 @@
 # 🦔 PostHog Farm
 
+[![PostHog Farm: every PostHog team member is a hedgehog](docs/hero.png)](https://posthog.farm)
+
+<p align="center"><b><a href="https://posthog.farm">posthog.farm</a></b></p>
+
 A tiny pixel-art game where every PostHog team member is a hedgehog. Walk around the farm,
 meet your colleagues in their true form, and feed them. You get **one snack per day**, so
 choose wisely.
@@ -126,7 +130,9 @@ After changing bindings in `wrangler.jsonc`, regenerate types with `npm run cf-t
 The farm is served at **https://posthog.farm**, configured as a Worker
 [custom domain](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
 in `wrangler.jsonc`. The zone lives in the same Cloudflare account, and deploying creates the DNS
-record and certificate automatically. It's also reachable at `posthog-farm.<subdomain>.workers.dev`.
+record and certificate automatically. `www.posthog.farm` is attached the same way and the Worker
+301-redirects it to `posthog.farm` (keeping the path and query), which is why `run_worker_first`
+is `true`. It's also reachable at `posthog-farm.<subdomain>.workers.dev`.
 
 From then on, every push to `main` deploys, and the farm rebuilds itself daily at 05:00 UTC.
 
