@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "posthog-farm",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // The Barn: a single SQLite-backed Durable Object. It's the source of truth for
+  // hedgehog XP and for the "one snack per IP per day" rule. Durable Objects process
+  // requests one at a time, so the check-and-insert is atomic (no double-feeding races,
+  // unlike KV which is eventually consistent).
+  "durable_objects": {
+    "bindings": [{ "name": "BARN", "class_name": "Barn" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Barn"] }],
+  // Cloudflare's Rate Limiting binding: cheap edge-side burst protection so nobody
+  // can hammer the Barn with feed requests. The daily limit lives in the Barn.
+  "ratelimits": [
+    {
+      "name": "FEED_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ]
+  // Secrets (set with `wrangler secret put IP_SALT`):
+  //   IP_SALT: random string used to hash visitor IPs, so we never store raw IPs
+}

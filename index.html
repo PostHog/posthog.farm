@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <meta name="theme-color" content="#2b5a22" />
+        <title>PostHog Farm · Feed the hedgehogs</title>
+        <meta name="description" content="A tiny farm where every PostHog team member is a hedgehog. One snack per day. Choose wisely." />
+        <meta property="og:title" content="PostHog Farm" />
+        <meta property="og:description" content="Every PostHog team member is a hedgehog. You get one snack per day. Choose wisely." />
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦔</text></svg>" />
+    </head>
+    <body>
+        <canvas id="world"></canvas>
+
+        <div id="hud" hidden>
+            <div class="hud-top">
+                <div class="logo-chip">POSTHOG <span>FARM</span></div>
+                <div id="snack" class="chip snack">CHECKING SNACK BAG...</div>
+                <nav class="hud-buttons">
+                    <button class="btn small" data-action="dex" title="Hedgedex (Q)">DEX</button>
+                    <button class="btn small" data-action="ranks" title="Rankings (R)">RANKS</button>
+                    <button class="btn small" data-action="farmer" title="Farmer stats (F)">ME</button>
+                    <button class="btn small secondary" data-action="names" title="Show names (N)">ABC</button>
+                    <button class="btn small secondary" data-action="music" title="Music (M)">♪</button>
+                    <button class="btn small secondary" data-action="sfx" title="Sound effects">SFX</button>
+                    <button class="btn small secondary" data-action="help" title="Help (H)">?</button>
+                </nav>
+            </div>
+            <div id="party" class="chip party"></div>
+            <div class="zoom-buttons">
+                <button class="btn small secondary" data-action="zoom-in" title="Zoom in (+)" aria-label="Zoom in">+</button>
+                <button class="btn small secondary" data-action="zoom-out" title="Zoom out (-)" aria-label="Zoom out">-</button>
+            </div>
+            <canvas id="minimap" width="152" height="104"></canvas>
+            <div id="ticker"><div class="ticker-track"></div></div>
+        </div>
+
+        <div id="title">
+            <div class="title-inner">
+                <h1>POSTHOG<span>FARM</span></h1>
+                <p class="tagline">Every PostHog team member is a hedgehog.<br />You get <em>one</em> snack per day. Choose wisely.</p>
+                <div id="parade"></div>
+                <button id="start" class="btn big">PRESS START</button>
+                <p id="title-stats" class="title-stats">LOADING THE BARN...</p>
+                <p class="credits">
+                    A PRODUCTION OF THE HEDGEHOG WELFARE COMMITTEE<br />
+                    <span id="roster-date"></span>
+                </p>
+            </div>
+        </div>
+
+        <div id="modal-root"></div>
+        <div id="toasts" aria-live="polite"></div>
+        <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>
