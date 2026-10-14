@@ -10,7 +10,7 @@ import {
     utcDay,
 } from '../shared/game'
 import { audio } from './audio'
-import { chatterFor, OUTCOME_LINES, pick } from './lines'
+import { chatterFor, greetingFor, OUTCOME_LINES, pick } from './lines'
 import * as S from './sprites'
 
 export const WORLD_W = 1216
@@ -20,6 +20,9 @@ const INTERACT_RANGE = 26
 /** hang around this close to a hedgehog for LINGER_MS and their picture pops up */
 const LINGER_RANGE = 52
 const LINGER_MS = 2000
+/** at most this many speech bubbles at once; a new one pushes out the oldest */
+const MAX_BUBBLES = 3
+const EMOTE_MS = 1400
 
 type Ellipse = { cx: number; cy: number; rx: number; ry: number }
 type Rect = { x: number; y: number; w: number; h: number }
@@ -105,9 +108,10 @@ export class Hog {
         this.stage = chonkStage(this.level)
     }
 
-    say(text: string, seconds = 4) {
-        this.bubble = { text, until: performance.now() + seconds * 1000 }
-    }
+    /** the "!" icon after you first meet them */
+    emoteUntil = 0
+    /** said hi (in text) this session, after you hung around them */
+    greeted = false
 
     get sprite(): S.Sprite {
         const now = performance.now()
@@ -167,6 +171,8 @@ export class World {
     /** point the compass at the nearest party hog when nothing else is being tracked */
     partyCompass = false
     nextChatter = 0
+    /** hedgehogs currently showing a speech bubble, oldest first */
+    private talking: Hog[] = []
     darkness = darkness()
     titleAngle = 0
     lastTime = performance.now()
@@ -439,7 +445,7 @@ export class World {
         audio.play('whistle')
         hog.whistled = true
         hog.state = 'walk'
-        hog.say('!!!', 1.5)
+        this.emote(hog)
         this.highlightId = hog.h.id
     }
 
@@ -471,7 +477,7 @@ export class World {
             if (outcome === 'mystery_sock') this.particles.push({ x: hog.x, y: hog.y - 20, vx: 0, vy: -10, life: 2, max: 2, kind: 'sprite', sprite: S.SOCK })
             if (xp > 0) this.hearts(hog, 6)
             this.floatText(hog.x, hog.y - 26, xp > 0 ? `+${xp} XP` : '+0 XP', xp > 0 ? '#FFE066' : '#ccc')
-            hog.say(pick(OUTCOME_LINES[outcome]), 5)
+            this.say(hog, pick(OUTCOME_LINES[outcome]), 5)
             if (outcome === 'zoomies') hog.zoomUntil = performance.now() + 30_000
             if (leveledUp) {
                 audio.play('levelup')
@@ -487,7 +493,7 @@ export class World {
         hog.hopUntil = performance.now() + 1500
         if (this.onScreen(hog.x, hog.y)) {
             this.hearts(hog, 3)
-            hog.say(pick(['Nom! Thanks, stranger!', '*munch*', 'A gift from afar!', 'Snack delivery!']), 3)
+            this.say(hog, pick(['Nom! Thanks, stranger!', '*munch*', 'A gift from afar!', 'Snack delivery!']), 3)
         }
     }
 
@@ -500,6 +506,19 @@ export class World {
             if (d < bestD) [best, bestD] = [hog, d]
         }
         return best
+    }
+
+    /** Speech bubbles are capped at MAX_BUBBLES: when a new one starts, the oldest one ends (FIFO) */
+    say(hog: Hog, text: string, seconds = 4) {
+        const now = performance.now()
+        this.talking = this.talking.filter((h) => h !== hog && h.bubble && h.bubble.until > now)
+        hog.bubble = { text, until: now + seconds * 1000 }
+        this.talking.push(hog)
+        while (this.talking.length > MAX_BUBBLES) this.talking.shift()!.bubble = null
+    }
+
+    emote(hog: Hog) {
+        hog.emoteUntil = performance.now() + EMOTE_MS
     }
 
     /** Forget whoever we were tracking or whistling for (e.g. once we've met someone) */
@@ -775,13 +794,16 @@ export class World {
         const speedMul = this.darkness > 0.2 ? 1.3 : 1
         for (const hog of this.hogs) this.updateHog(hog, dt, now, sleepyChance, speedMul)
 
-        // chatter: a random visible, awake hedgehog says something every few seconds
+        // chatter: every 4-7.5s a random visible hedgehog says something, but only if nobody
+        // else is talking, and never the ones right next to you (they already show name + picture)
         if (now > this.nextChatter) {
-            this.nextChatter = now + 1500 + Math.random() * 2500
-            const visible = this.hogs.filter((h) => !h.bubble && this.onScreen(h.x, h.y, -10))
-            if (visible.length) {
+            this.nextChatter = now + 4000 + Math.random() * 3500
+            const quiet = !this.hogs.some((h) => h.bubble && this.onScreen(h.x, h.y))
+            const visible = this.hogs.filter((h) => !h.nearSince && h !== this.nearbyHog && this.onScreen(h.x, h.y, -10))
+            if (quiet && visible.length) {
                 const hog = pick(visible)
-                hog.say(
+                this.say(
+                    hog,
                     chatterFor(hog.h, {
                         lastFedAt: hog.stats[2],
                         day: this.day,
@@ -800,8 +822,14 @@ export class World {
                 const d = dist(hog.x, hog.y - 4, this.player.x, this.player.y - 4)
                 if (d < best) [best, this.nearbyHog] = [d, hog]
                 if (d < 44) this.onMeet(hog)
-                if (d < LINGER_RANGE) hog.nearSince ||= now
-                else hog.nearSince = 0
+                if (d < LINGER_RANGE) {
+                    hog.nearSince ||= now
+                    // hang around someone for a couple of seconds and they say hi properly
+                    if (!hog.greeted && hog.state !== 'sleep' && now - hog.nearSince >= LINGER_MS) {
+                        hog.greeted = true
+                        this.say(hog, greetingFor(hog.h), 3)
+                    }
+                } else hog.nearSince = 0
             }
             if (!this.nearbyHog) {
                 this.nearbyProp =
@@ -1134,6 +1162,14 @@ export class World {
                     color: pick(['#FF5C8A', '#FFE066', '#2F80FA', '#36C46F', '#B62AD9']),
                 })
             }
+        }
+        if (now < hog.emoteUntil) {
+            const t = EMOTE_MS - (hog.emoteUntil - now)
+            const e = S.EMOTE_HI
+            const pop = t < 90 ? 4 : t < 180 ? -2 : 0
+            ctx.globalAlpha = Math.min(1, (hog.emoteUntil - now) / 200)
+            ctx.drawImage(e, Math.round(hog.x - e.width / 2), y0 - e.height - (this.partyIds.has(hog.h.id) ? 8 : 1) + pop)
+            ctx.globalAlpha = 1
         }
         if (now < hog.eatUntil && hog.eatingFood) {
             const f = S.foodSprite(hog.eatingFood)

@@ -6,7 +6,7 @@ import { ROSTER, ROSTER_GENERATED_AT } from '../shared/game'
 import { api } from './api'
 import { audio } from './audio'
 import { fmtNumber, h } from './dom'
-import { greetingFor, pick } from './lines'
+import { pick } from './lines'
 import { markSeen, persist, save } from './save'
 import * as S from './sprites'
 import { serverNow, state } from './state'
@@ -56,7 +56,7 @@ world.onProp = (action) => {
 }
 world.onMeet = (hog) => {
     if (markSeen(hog.h.id)) {
-        hog.say(greetingFor(hog.h), 3)
+        world.emote(hog)
         checkMeetTrophies()
     }
 }

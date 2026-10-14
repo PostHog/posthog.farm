@@ -299,6 +299,12 @@ export function foodSprite(id: FoodId): Sprite {
 }
 
 export const HEART = fromMap(['.x.x.', 'xrxrx', 'xrrrx', '.xrx.', '..x..'], { x: '#7a1424', r: '#FF5C8A' })
+/** The little "!" a hedgehog pops when you meet it */
+export const EMOTE_HI = fromMap(
+    ['.xxxxxxx.', 'xwwwwwwwx', 'xwwwkwwwx', 'xwwwkwwwx', 'xwwwkwwwx', 'xwwwwwwwx', 'xwwwkwwwx', 'xwwwwwwwx', '.xxxwxxx.', '....x....'],
+    { x: OUTLINE, w: '#ffffff', k: '#F54E00' }
+)
+
 export const PARTY_HAT = fromMap(
     ['..y.y..', '...y...', '..yxy..', '..xpx..', '..xbx..', '.xpppx.', '.xyyyx.', 'xbbbbbx', 'xxxxxxx'],
     { x: OUTLINE, p: '#FF5C8A', y: '#FFE066', b: '#2F80FA' }
