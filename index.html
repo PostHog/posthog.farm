@@ -6,7 +6,10 @@
         <meta name="theme-color" content="#2b5a22" />
         <title>PostHog Farm · Feed the hedgehogs</title>
         <meta name="description" content="A tiny farm where every PostHog team member is a hedgehog. One snack per day. Choose wisely." />
+        <link rel="canonical" href="https://posthog.farm/" />
+        <meta name="robots" content="index, follow, max-image-preview:large" />
         <meta property="og:type" content="website" />
+        <meta property="og:locale" content="en_US" />
         <meta property="og:url" content="https://posthog.farm/" />
         <meta property="og:site_name" content="PostHog Farm" />
         <meta property="og:title" content="PostHog Farm" />
@@ -17,9 +20,17 @@
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="A pixel-art farm full of hedgehogs by a pond, with the title POSTHOG.FARM" />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@PostHog" />
         <meta name="twitter:title" content="PostHog Farm" />
         <meta name="twitter:description" content="Every PostHog team member is a hedgehog. You get one snack per day. Choose wisely." />
         <meta name="twitter:image" content="https://posthog.farm/og.png" />
+        <!--
+            Structured data, following posthog.com and brand.posthog.com: PostHog is described as the same
+            Organization (field for field as POSTHOG_ORGANIZATION in posthog.com's src/components/seo.tsx),
+            with posthog.com's @id, so crawlers fold this site into the same organization node.
+            Keep it in step with posthog.com if that changes.
+        -->
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://posthog.com/#organization","name":"PostHog","url":"https://posthog.com","logo":"https://posthog.com/brand/posthog-logo-stacked.png","sameAs":["https://twitter.com/PostHog","https://github.com/PostHog","https://www.linkedin.com/company/posthog"],"address":{"@type":"PostalAddress","streetAddress":"2261 Market Street #4008","addressLocality":"San Francisco","addressRegion":"CA","postalCode":"94114","addressCountry":"US"}},{"@type":"WebSite","@id":"https://posthog.farm/#website","name":"PostHog Farm","url":"https://posthog.farm/","inLanguage":"en","publisher":{"@id":"https://posthog.com/#organization"}},{"@type":"VideoGame","@id":"https://posthog.farm/#game","name":"PostHog Farm","url":"https://posthog.farm/","description":"A pixel-art browser game where every PostHog team member is a hedgehog. Walk around the farm, meet them, and feed them. You get one snack per day.","image":"https://posthog.farm/og.png","genre":["Casual","Simulation"],"gamePlatform":"Web browser","applicationCategory":"GameApplication","operatingSystem":"Any","playMode":"MultiPlayer","inLanguage":"en","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"isPartOf":{"@id":"https://posthog.farm/#website"},"author":{"@id":"https://posthog.com/#organization"},"publisher":{"@id":"https://posthog.com/#organization"}},{"@type":"SoftwareSourceCode","@id":"https://posthog.farm/#source","name":"posthog.farm","codeRepository":"https://github.com/PostHog/posthog.farm","programmingLanguage":"TypeScript","runtimePlatform":"Cloudflare Workers","targetProduct":{"@id":"https://posthog.farm/#game"},"author":{"@id":"https://posthog.com/#organization"}}]}</script>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦔</text></svg>" />
     </head>
     <body>
