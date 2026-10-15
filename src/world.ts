@@ -402,13 +402,13 @@ export class World {
         }
         this.solids = this.props.filter((p) => p.solid).map((p) => p.solid!)
 
-        // hedgehogs
+        // hedgehogs: shuffled every visit, so the same faces aren't always by the barn
         for (const h of ROSTER) {
             let x = 0
             let y = 0
             for (let tries = 0; tries < 200; tries++) {
-                x = 40 + rand() * (WORLD_W - 80)
-                y = 50 + rand() * (WORLD_H - 90)
+                x = 40 + Math.random() * (WORLD_W - 80)
+                y = 50 + Math.random() * (WORLD_H - 90)
                 if (!this.isSolid(x, y, 6) && !inRect(x, y, barnZone) && !inRect(x, y, crops)) break
             }
             const hog = new Hog(h, x, y)
